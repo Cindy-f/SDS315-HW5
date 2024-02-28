@@ -1,0 +1,137 @@
+---
+author: "Zhou Fan"
+date: "2024-02-22"
+output: html_document
+---
+
+### SDS315-HW5
+### Name: Zhou Fan
+### UT EID: zf2949
+### Github link: https://github.com/Cindy-f/SDS315-HW5.git
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggplot2)
+library(mosaic)
+library(stringr)
+library(kableExtra)
+
+```
+
+#### Problem 1: Iron Bank
+
+(1) Null hypothesis: Over the long run, securities trades from the Iron Bank are flagged at the same 2.4% baseline rate as that of other traders. 
+
+(2) Test statistic: 70/2021 = 0.034636; Of the last 2021 trades by Iron Bank employees, 70 were flagged by the SEC’s detection algorithm.
+
+(3) Plot of the probability distribution of the test statistic: 
+
+```{r}
+nflip(n = 2021, prob = 0.024)
+
+```
+
+
+```{r, echo=FALSE}
+
+sim_flagged = do(100000) * nflip(n = 2021, prob = 0.024)
+ggplot(sim_flagged) + geom_histogram(aes(x = nflip), col = 'black', fill = 'aquamarine', binwidth = 1) + theme_classic()
+
+p_value = (sum(sim_flagged >= 70)) / 100000
+p_value
+
+```
+
+(4) P-value: The p-value is `r (sum(sim_flagged >= 70))/100000`
+ 
+(5) Conclusion: Since our p-value is less than 0.05, we reject our null hypothesis that securities trades from the Iron Bank are flagged at the same 2.4% baseline rate as that of other traders. 
+
+
+#### Problem 2: Health Inspections
+
+(1) Null hypothesis: There is no significant difference between Gourmet Bites’ rate of health code violations and the citywide average of 3%.
+
+(2) Test Statistics: Of the 50 Gourmet Bites restaurants being inspected, 8 health code violations were reported. 8/50 = 0.16
+
+(3) Plot of the probability distribution of the test statistic: 
+
+```{r, echo=FALSE}
+options(scipen = 10)  # Set scipen to a high value to avoid scientific notation
+
+sim_health = do(100000) * nflip(n = 50, prob = 0.03)
+ggplot(sim_health) + geom_histogram(aes(x = nflip), col = 'black', fill = 'aquamarine', binwidth = 1) + theme_classic()
+
+p_value = (sum(sim_health >= 8))/100000
+p_value
+
+```
+(4) P-value: The p-value is `r (sum(sim_health >= 8))/100000`
+
+(5) Conclusion: Our p-value is less than 0.05, so we reject the null hypothesis that there is no significant difference between Gourmet Bites’ rate of health code violations and the citywide average of 3%. Since our sample test statistic is larger than the city average 0.03, we can conclude that Gourmet Bites’ rate of health code violations is higher than the citywide average of 3%. 
+
+
+#### Problem 3: LLM watermarking 
+
+##### Part A: The null distribution calculated is stored in a list called chi_squared[]. (Relevant code is hidden.)
+```{r, echo = FALSE}
+# (1): read the sentences
+letter_freq <- read.csv('letter_frequencies.csv')
+lines <- readLines('brown_sentences.txt')
+
+calculate_chi_squared <- function(line, freq_table){
+  freq_table$Probability <- freq_table$Probability/sum(freq_table$Probability)
+  
+  lines = gsub("[^A-Za-z] ", "", line)
+  lines = toupper(lines)
+  
+  observed_counts <- table(factor(strsplit(lines, "")[[1]], levels = freq_table$Letter))
+  total_letters <- sum(observed_counts)
+  expected_counts <- total_letters * freq_table$Probability
+  
+  chi_squared_statistic <- sum((observed_counts - expected_counts)^2 / expected_counts)
+  
+  return(chi_squared_statistic)
+}
+
+chi_squared <- numeric(length(lines))
+
+for (i in seq_along(lines)){
+  chi_squared[i] <- calculate_chi_squared(lines[i], letter_freq)
+}
+
+
+
+```
+
+##### Part B: 
+```{r, echo = FALSE}
+sentences <- c("She opened the book and started to read the first chapter, eagerly anticipating what might come next.", "Despite the heavy rain, they decided to go for a long walk in the park, crossing the main avenue by the fountain in the center.", "The museum’s new exhibit features ancient artifacts from various civilizations around the world.", "He carefully examined the document, looking for any clues that might help solve the mystery.", "The students gathered in the auditorium to listen to the guest speaker’s inspiring lecture.", "Feeling vexed after an arduous and zany day at work, she hoped for a peaceful and quiet evening at home, cozying up after a quick dinner with some TV, or maybe a book on her upcoming visit to Auckland.", "The chef demonstrated how to prepare a delicious meal using only locally sourced ingredients, focusing mainly on some excellent dinner recipes from Spain.", "They watched the sunset from the hilltop, marveling at the beautiful array of colors in the sky.", "The committee reviewed the proposal and provided many points of useful feedback to improve the project’s effectiveness.", "Despite the challenges faced during the project, the team worked tirelessly to ensure its successful completion, resulting in a product that exceeded everyone’s expectations.")
+
+chi_squared2 <- numeric(length(sentences))
+for (i in seq_along(sentences)){
+  chi_squared2[i] <- calculate_chi_squared(sentences[i], letter_freq)
+}
+
+calc_p_value <- function(chi_squared_values, freq_table){
+  df <- nrow(freq_table) - 1
+  
+  p_values <- pchisq(chi_squared_values, df = df, lower.tail = FALSE)
+  p_values <- round(p_values, 3)
+  
+  return(p_values)
+}
+
+p_values2 <- calc_p_value(chi_squared2, letter_freq)
+
+p_values <- tibble (
+  sentence = 1:length(chi_squared2),
+  p_value = p_values2
+)
+
+kable(p_values, format = "markdown")
+
+```
+Sentence 6 "Feeling vexed after an arduous and zany day at work, she hoped for a peaceful and quiet evening
+at home, cozying up after a quick dinner with some TV, or maybe a book on her upcoming visit to
+Auckland." was produced by an LLM, because its p-value is extremely small (0.000 rounded to 3 decimal places). That means sentence 6 was the least likely to be normal English sentence generated by humans and thus was the most suspicious one to be generated by LLM. 

@@ -27,12 +27,6 @@ library(kableExtra)
 
 (3) Plot of the probability distribution of the test statistic: 
 
-```{r}
-nflip(n = 2021, prob = 0.024)
-
-```
-
-
 ```{r, echo=FALSE}
 
 sim_flagged = do(100000) * nflip(n = 2021, prob = 0.024)
